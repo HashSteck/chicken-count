@@ -104,10 +104,10 @@ Image: chicken-photo.jpg
 Original image size: 800x600
 
 All predictions:
-  Kein Huhn: 15.2%
-  Huhn: 84.8%
+  No Chicken: 15.2%
+  Chicken: 84.8%
 
-Best prediction: Huhn (84.8%)
+Best prediction: Chicken (84.8%)
 🐔 CHICKEN DETECTED! Confidence: 84.8%
 ================================
 

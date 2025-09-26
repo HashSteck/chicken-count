@@ -21,7 +21,7 @@ tf.setBackend('cpu');
 class TeachableChickenDetector {
     constructor(modelUrl) {
         this.model = null;
-        this.modelUrl = modelUrl || './model/model.json'; // Pfad zu Ihrem Teachable Machine Modell
+        this.modelUrl = modelUrl || './model/model.json'; // Path to your Teachable Machine model
     }
 
     async loadModel() {
@@ -29,11 +29,11 @@ class TeachableChickenDetector {
         console.log(`Model URL: ${this.modelUrl}`);
         
         try {
-            // Laden des Teachable Machine Modells
+            // Load the Teachable Machine model
             this.model = await tf.loadLayersModel(this.modelUrl);
             console.log('Custom model loaded successfully!');
             
-            // Modell-Info anzeigen
+            // Display model info
             console.log(`Model input shape: [${this.model.inputs[0].shape}]`);
             console.log(`Model output shape: [${this.model.outputs[0].shape}]`);
         } catch (error) {
@@ -53,14 +53,14 @@ class TeachableChickenDetector {
 
         console.log(`Analyzing image: ${imagePath}`);
         
-        // Bild laden und verarbeiten
+        // Load and process the image
         const image = await Jimp.read(imagePath);
         
-        // Teachable Machine erwartet meist 224x224 Pixel
+        // Teachable Machine typically expects 224x224 pixels
         const resized = image.resize(224, 224);
         const { width, height } = resized.bitmap;
         
-        // Bild zu Tensor konvertieren (normalisiert 0-1)
+        // Convert image to tensor (normalized 0-1)
         const imageArray = new Float32Array(width * height * 3);
         let pixelIndex = 0;
         
@@ -70,19 +70,19 @@ class TeachableChickenDetector {
             imageArray[pixelIndex++] = resized.bitmap.data[idx + 2] / 255; // B
         });
 
-        // Tensor erstellen (Batch-Dimension hinzufügen)
+        // Create tensor (add batch dimension)
         const tensor = tf.tensor4d(imageArray, [1, height, width, 3]);
         
-        // Vorhersage durchführen
+        // Perform prediction
         const predictions = await this.model.predict(tensor);
         const predictionData = await predictions.data();
         
-        // Tensor aufräumen
+        // Clean up tensors
         tensor.dispose();
         predictions.dispose();
 
-        // Ergebnisse interpretieren (angepasst für Ihr Modell)
-        const classes = ['Kein Huhn', 'Huhn']; // Passen Sie diese Labels an Ihr Modell an
+        // Interpret results (adjust for your model)
+        const classes = ['No Chicken', 'Chicken']; // Adjust these labels to match your model
         const results = [];
         
         for (let i = 0; i < predictionData.length; i++) {
@@ -92,7 +92,7 @@ class TeachableChickenDetector {
             });
         }
         
-        // Bestes Ergebnis finden
+        // Find best prediction
         const bestPrediction = results.reduce((prev, current) => 
             (prev.confidence > current.confidence) ? prev : current
         );
@@ -100,7 +100,7 @@ class TeachableChickenDetector {
         return {
             predictions: results,
             bestPrediction: bestPrediction,
-            isChicken: bestPrediction.class === 'Huhn' && bestPrediction.confidence > 0.7,
+            isChicken: bestPrediction.class === 'Chicken' && bestPrediction.confidence > 0.7,
             confidence: bestPrediction.confidence,
             imageSize: { width: image.bitmap.width, height: image.bitmap.height }
         };
@@ -163,7 +163,7 @@ class TeachableChickenDetector {
 
 // Main execution function
 async function main() {
-    // Sie können die Modell-URL als Kommandozeilen-Parameter übergeben
+    // You can pass the model URL as a command-line parameter
     const modelUrl = process.argv[3] || './model/model.json';
     const detector = new TeachableChickenDetector(modelUrl);
     
