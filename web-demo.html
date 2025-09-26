@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chicken Detection Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        .upload-area.dragover {
+            border-color: #007bff;
+            background-color: #e3f2fd;
+        }
+        #imageInput {
+            display: none;
+        }
+        #imagePreview {
+            max-width: 100%;
+            max-height: 400px;
+            margin: 20px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #detectBtn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            display: block;
+            margin: 20px auto;
+        }
+        #detectBtn:hover {
+            background-color: #218838;
+        }
+        #detectBtn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        #results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .detection-box {
+            border: 3px solid #ff4444;
+            position: absolute;
+            pointer-events: none;
+        }
+        #imageContainer {
+            position: relative;
+            display: inline-block;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+        }
+        .chicken-count {
+            font-size: 24px;
+            font-weight: bold;
+            color: #28a745;
+            text-align: center;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐔 Chicken Detection Demo</h1>
+        
+        <div class="upload-area" onclick="document.getElementById('imageInput').click()">
+            <p><strong>Click here or drag & drop an image to detect chickens</strong></p>
+            <p>Supported formats: JPEG, PNG, GIF</p>
+        </div>
+        
+        <input type="file" id="imageInput" accept="image/*">
+        
+        <div id="imageContainer">
+            <img id="imagePreview" style="display: none;">
+        </div>
+        
+        <button id="detectBtn" style="display: none;" onclick="detectChickens()">
+            🔍 Detect Chickens
+        </button>
+        
+        <div id="results"></div>
+    </div>
+
+    <!-- TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2"></script>
+
+    <script>
+        let model;
+        let currentImage;
+
+        // Load the model when page loads
+        async function loadModel() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">Loading AI model... This may take a moment.</div>';
+            
+            try {
+                model = await cocoSsd.load();
+                resultsDiv.innerHTML = '<div style="color: green;">✅ Model loaded successfully! Ready to detect chickens.</div>';
+            } catch (error) {
+                resultsDiv.innerHTML = '<div style="color: red;">❌ Failed to load model: ' + error.message + '</div>';
+            }
+        }
+
+        // Handle file selection
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = document.getElementById('imagePreview');
+                    img.src = event.target.result;
+                    img.style.display = 'block';
+                    img.onload = function() {
+                        currentImage = img;
+                        document.getElementById('detectBtn').style.display = 'block';
+                        document.getElementById('results').innerHTML = '';
+                        // Clear any previous detection boxes
+                        clearDetectionBoxes();
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Drag and drop functionality
+        const uploadArea = document.querySelector('.upload-area');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('imageInput').files = files;
+                document.getElementById('imageInput').dispatchEvent(new Event('change'));
+            }
+        });
+
+        // Clear detection boxes
+        function clearDetectionBoxes() {
+            const boxes = document.querySelectorAll('.detection-box');
+            boxes.forEach(box => box.remove());
+        }
+
+        // Detect chickens in the image
+        async function detectChickens() {
+            if (!model || !currentImage) return;
+
+            const resultsDiv = document.getElementById('results');
+            const detectBtn = document.getElementById('detectBtn');
+            
+            // Clear previous results
+            clearDetectionBoxes();
+            
+            detectBtn.disabled = true;
+            detectBtn.textContent = '🔄 Analyzing...';
+            resultsDiv.innerHTML = '<div class="loading">Analyzing image for chickens...</div>';
+
+            try {
+                // Run detection
+                const predictions = await model.detect(currentImage);
+                
+                // Filter for birds (chickens)
+                const birdPredictions = predictions.filter(p => p.class === 'bird' && p.score > 0.5);
+                
+                // Display results
+                let resultsHTML = `<h3>Detection Results:</h3>`;
+                resultsHTML += `<div class="chicken-count">🐔 Found ${birdPredictions.length} chicken(s)!</div>`;
+                
+                if (birdPredictions.length > 0) {
+                    resultsHTML += `<h4>Chicken Detections:</h4><ul>`;
+                    birdPredictions.forEach((prediction, index) => {
+                        const confidence = (prediction.score * 100).toFixed(1);
+                        resultsHTML += `<li>Chicken ${index + 1}: ${confidence}% confidence</li>`;
+                        
+                        // Draw bounding box
+                        drawBoundingBox(prediction.bbox, `Chicken ${index + 1} (${confidence}%)`);
+                    });
+                    resultsHTML += `</ul>`;
+                }
+                
+                // Show all detections for reference
+                if (predictions.length > 0) {
+                    resultsHTML += `<h4>All Objects Detected:</h4><ul>`;
+                    predictions.forEach((prediction, index) => {
+                        const confidence = (prediction.score * 100).toFixed(1);
+                        resultsHTML += `<li>${prediction.class}: ${confidence}%</li>`;
+                    });
+                    resultsHTML += `</ul>`;
+                }
+                
+                if (predictions.length === 0) {
+                    resultsHTML += `<p>No objects detected in this image.</p>`;
+                }
+                
+                resultsDiv.innerHTML = resultsHTML;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div style="color: red;">❌ Error during detection: ${error.message}</div>`;
+            } finally {
+                detectBtn.disabled = false;
+                detectBtn.textContent = '🔍 Detect Chickens';
+            }
+        }
+
+        // Draw bounding box on image
+        function drawBoundingBox(bbox, label) {
+            const [x, y, width, height] = bbox;
+            const container = document.getElementById('imageContainer');
+            const img = document.getElementById('imagePreview');
+            
+            // Calculate scaling factors
+            const scaleX = img.offsetWidth / img.naturalWidth;
+            const scaleY = img.offsetHeight / img.naturalHeight;
+            
+            // Create bounding box element
+            const box = document.createElement('div');
+            box.className = 'detection-box';
+            box.style.left = (x * scaleX) + 'px';
+            box.style.top = (y * scaleY) + 'px';
+            box.style.width = (width * scaleX) + 'px';
+            box.style.height = (height * scaleY) + 'px';
+            box.title = label;
+            
+            container.appendChild(box);
+        }
+
+        // Load model when page loads
+        window.addEventListener('load', loadModel);
+    </script>
+</body>
+</html>

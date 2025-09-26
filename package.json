@@ -1,0 +1,21 @@
+{
+  "name": "chicken-detection",
+  "version": "1.0.0",
+  "description": "A Node.js script to detect chickens in images using TensorFlow.js",
+  "main": "chicken-count.js",
+  "scripts": {
+    "start": "node chicken-count.js",
+    "test": "node chicken-count.js test-image.jpg",
+    "serve": "python -m http.server 8000",
+    "serve-win": "python -m http.server 8000"
+  },
+  "dependencies": {
+    "@tensorflow/tfjs": "^4.10.0",
+    "@tensorflow-models/coco-ssd": "^2.2.2",
+    "jimp": "^0.22.10",
+    "jsdom": "^22.1.0"
+  },
+  "keywords": ["tensorflow", "machine-learning", "object-detection", "chicken", "image-recognition"],
+  "author": "Marius Steck",
+  "license": "MIT"
+}
